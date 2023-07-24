@@ -13,6 +13,7 @@ const CustomizableCompilers = require('testcafe/lib/configuration/customizable-c
 const { readFileSync, existsSync } = require('fs');
 const { IdGenerator } = require('@cucumber/messages');
 const chalk = require('chalk');
+const { log } = require('console');
 
 const AND_SEPARATOR = ' and ';
 
@@ -202,20 +203,20 @@ module.exports = class GherkinTestcafeCompiler {
             let index = 0;
             let stepName;
             try {
-              process.stdout.write('\n');
+              if (!isParalelExecution()) process.stdout.write('\n');
               for (const step of scenario.steps) {
-                stepName = step.text;
-                process.stdout.write(chalk.gray(stepName));
+                if (!isParalelExecution()) {
+                  stepName = step.text;
+                  process.stdout.write('  · ' + chalk.gray(stepName));
+                }
                 await this._resolveAndRunStepDefinition(t, step);
-                process.stdout.clearLine();
-                process.stdout.cursorTo(0);
-                console.log(chalk.green(stepName));
+
+                drawStep('green', stepName);
+
                 index += 1;
               }
             } catch (e) {
-              process.stdout.clearLine();
-              process.stdout.cursorTo(0);
-              console.log(chalk.red(stepName));
+              drawStep('red', stepName);
               error = e;
               setFailIndex(test, index);
             }
@@ -428,4 +429,17 @@ module.exports = class GherkinTestcafeCompiler {
   }
 
   static cleanUp() {}
+};
+
+const drawStep = (color, stepName) => {
+  if (!isParalelExecution()) {
+    process.stdout.clearLine();
+    process.stdout.cursorTo(0);
+    console.log(chalk[color]('  · ' + stepName));
+  }
+};
+
+const isParalelExecution = () => {
+  const { concurrency } = JSON.parse(process.env.params);
+  return concurrency > 1;
 };
